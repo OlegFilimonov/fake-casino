@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+        xmlns:f="http://java.sun.com/jsf/core"
+        xmlns:h="http://java.sun.com/jsf/html"
+        xmlns:ui="http://java.sun.com/jsf/facelets"
+        xmlns:p="http://primefaces.org/ui">
+<h:head>
+    <title>PrimeFaces Push Chat</title>
+    <style type="text/css">
+        .ui-widget {font-size: 13px;}
+        .ml10 {margin-left: 10px}
+        .chatPanel {height: 200px; margin-bottom: 10px; overflow-y: auto}
+        .message {width: 50%}
+    </style>
+</h:head>
+<h:body>
+    <h:form id="form">
+        <p:messages autoUpdate="true"/>
+
+        <p:panel id="chatContainer" header="Chat">
+            <h:panelGroup rendered="#{not casinoPage.loggedIn}">
+                <p:outputLabel for="userName" value="User name:"/>
+                <p:inputText id="userName" value="#{casinoPage.userName}" styleClass="ml10"/>
+                <p:inputText id="passWord" value="#{casinoPage.passWord}" styleClass="ml10"/>
+                <p:commandButton value="Login" action="#{casinoPage.login}" update="chatContainer"
+                        styleClass="ml10"/>
+            </h:panelGroup>
+
+            <h:panelGroup rendered="#{casinoPage.loggedIn}">
+                <p:outputPanel id="chat" layout="block" autoUpdate="false"
+                        styleClass="ui-corner-all ui-widget-content chatPanel"/>
+                <p:inputText id="msg" value="#{casinoPage.message}" styleClass="message"/>
+                <p:commandButton value="Send" action="#{casinoPage.sendMessage}" styleClass="ml10"
+                        update="msg" oncomplete="$('#form\\:msg').focus()"/>
+                <p:commandButton value="Logout" action="#{casinoPage.logout}" update="chatContainer"
+                        styleClass="ml10"/>
+            </h:panelGroup>
+        </p:panel>
+    </h:form>
+
+    <p:socket onMessage="handleMessage" channel="/chat" autoConnect="false" widgetVar="subscriber"/>
+
+    <script type="text/javascript">
+        function handleMessage(data) {
+            var chatContent = $(PrimeFaces.escapeClientId('form:chat'));
+            chatContent.append(data + '&lt;br />');
+            chatContent.scrollTop(chatContent.height());
+        }
+    </script>
+</h:body>
+</html>
