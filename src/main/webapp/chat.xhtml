@@ -2,51 +2,136 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
         "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml"
-        xmlns:f="http://java.sun.com/jsf/core"
-        xmlns:h="http://java.sun.com/jsf/html"
-        xmlns:ui="http://java.sun.com/jsf/facelets"
-        xmlns:p="http://primefaces.org/ui">
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:p="http://primefaces.org/ui"
+      xmlns:jsp="http://java.sun.com/jsp/jstl/core">
 <h:head>
-    <title>PrimeFaces Push Chat</title>
+    <title>Fake casino</title>
     <style type="text/css">
-        .ui-widget {font-size: 13px;}
-        .ml10 {margin-left: 10px}
-        .chatPanel {height: 200px; margin-bottom: 10px; overflow-y: auto}
-        .message {width: 50%}
+        .ui-widget {
+            font-size: 13px;
+        }
+
+        .ml10 {
+            margin-left: 10px
+        }
+
+        .chatPanel {
+            height: 100px;
+            margin-bottom: 10px;
+            overflow-y: auto
+        }
+
+        .message {
+            width: 50%
+        }
     </style>
 </h:head>
 <h:body>
+
+
     <h:form id="form">
+        <p:growl id="msg"/>
         <p:messages autoUpdate="true"/>
 
-        <p:panel id="chatContainer" header="Chat">
-            <h:panelGroup rendered="#{not casinoPage.loggedIn}">
-                <p:outputLabel for="userName" value="User name:"/>
-                <p:inputText id="userName" value="#{casinoPage.userName}" styleClass="ml10"/>
-                <p:inputText id="passWord" value="#{casinoPage.passWord}" styleClass="ml10"/>
-                <p:commandButton value="Login" action="#{casinoPage.login}" update="chatContainer"
-                        styleClass="ml10"/>
+        <p:remoteCommand name="updateUsers" update="userInterface" process="@this"/>
+        <p:remoteCommand name="resetBets" action="#{casinoView.resetBets}"/>
+
+        <p:panel id="container" header="Fake casino">
+
+            <h:panelGrid columns="2" cellpadding="5" rendered="#{not casinoView.loggedIn}">
+                <h:outputLabel value="Username:"/>
+                <p:inputText value="#{casinoView.username}"/>
+
+                <h:outputLabel value="Password:"/>
+                <p:inputText value="#{casinoView.password}"/>
+
+                <p:commandButton value="Login" actionListener="#{casinoView.login}" update="container"
+                                 icon="ui-icon-person"/>
+            </h:panelGrid>
+
+            <h:panelGroup id="playersContainer" rendered="#{casinoView.loggedIn}">
+                <p:outputPanel id="chat" layout="block" autoUpdate="false"
+                               styleClass="ui-corner-all ui-widget-content chatPanel"/>
+                <h:panelGroup id="userInterface">
+                    <p:dataList id="users" var="user" value="#{casinoUsers.players}" styleClass="usersList">
+                        <f:facet name="header">
+                            Users
+                        </f:facet>
+                        #{user.username} Balance: #{user.balance}$
+                    </p:dataList>
+
+                    <p:separator/>
+
+                    <p:spacer width="7"/>
+
+                    <p:inputText value="#{casinoView.message}" styleClass="messageInput"/>
+
+                    <p:spacer width="12"/>
+
+                    <p:commandButton value="Send" actionListener="#{casinoView.sendMessage}"
+                                     oncomplete="$('.messageInput').val('').focus()"/>
+
+                    <p:spacer width="12"/>
+
+                    <p:commandButton value="Disconnect" actionListener="#{casinoView.logout}" global="false"
+                                     update="container"/>
+
+                    <p:spacer width="5"/>
+
+
+                    <h:panelGrid columns="2" style="margin-bottom:10px" cellpadding="5"
+                                 rendered="#{casinoUsers.state == 0}">
+                        <p:selectBooleanCheckbox value="#{casinoView.ready}">
+                            <p:ajax update="msg" listener="#{casinoView.updateReady}"/>
+                        </p:selectBooleanCheckbox>
+                        <h:outputText value="Ready to play"/>
+                    </h:panelGrid>
+
+                    <h:panelGrid columns="3" cellpadding="5" rendered="#{casinoUsers.state == 1 and not casinoView.betMade}">
+                        <p:inputText value="#{casinoView.bet}"/>
+                        <p:inputText value="#{casinoView.numbers}"/>
+                        <p:commandButton value="Make a bet" actionListener="#{casinoView.makeBet}"/>
+                    </h:panelGrid>
+
+                </h:panelGroup>
+
+
             </h:panelGroup>
 
-            <h:panelGroup rendered="#{casinoPage.loggedIn}">
-                <p:outputPanel id="chat" layout="block" autoUpdate="false"
-                        styleClass="ui-corner-all ui-widget-content chatPanel"/>
-                <p:inputText id="msg" value="#{casinoPage.message}" styleClass="message"/>
-                <p:commandButton value="Send" action="#{casinoPage.sendMessage}" styleClass="ml10"
-                        update="msg" oncomplete="$('#form\\:msg').focus()"/>
-                <p:commandButton value="Logout" action="#{casinoPage.logout}" update="chatContainer"
-                        styleClass="ml10"/>
-            </h:panelGroup>
+
         </p:panel>
+
     </h:form>
 
-    <p:socket onMessage="handleMessage" channel="/chat" autoConnect="false" widgetVar="subscriber"/>
+    <p:socket onMessage="handleMessage" channel="/chat" autoConnect="true" widgetVar="subscriber"/>
+    <p:socket onMessage="handleMessage" channel="/resilts" autoConnect="true" widgetVar="subscriber"/>
+    <p:socket onMessage="handleStateSwitch" channel="/state" autoConnect="true" widgetVar="subscriber"/>
 
     <script type="text/javascript">
         function handleMessage(data) {
             var chatContent = $(PrimeFaces.escapeClientId('form:chat'));
             chatContent.append(data + '&lt;br />');
-            chatContent.scrollTop(chatContent.height());
+            chatContent.scroll(chatContent.height());
+            updateUsers();
+        }
+        function handleStateSwitch(data) {
+            var chatContent = $(PrimeFaces.escapeClientId('form:chat'));
+            var messageForCommand = "";
+            switch (data) {
+                case 0:
+                    messageForCommand = "Waining for players to get ready";
+                    resetBets();
+                    break;
+                case 1:
+                    messageForCommand = "Starting bidding";
+                    break;
+            }
+            chatContent.append("&lt;strong> " + messageForCommand + "&lt;/strong>" + '&lt;br />');
+            chatContent.scroll(chatContent.height());
+            updateUsers();
         }
     </script>
 </h:body>

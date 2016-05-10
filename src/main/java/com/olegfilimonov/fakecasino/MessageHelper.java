@@ -9,6 +9,7 @@ import java.io.Serializable;
 /**
  * @author Oleg Filimonov
  */
+
 @ApplicationScoped
 public class MessageHelper implements Serializable {
     @Inject
