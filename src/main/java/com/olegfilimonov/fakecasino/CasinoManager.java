@@ -37,15 +37,15 @@ public class CasinoManager implements Serializable {
 
             if (this.contains(username)) return false;
 
-            boolean valid = SQLDatabaseConnection.checkUser(username, password);
+            int id = SQLDatabaseConnection.checkUser(username, password);
 //            boolean valid = true;
 
-            if (!valid) return false;
+            if (id == -1) return false;
 
             int balance = SQLDatabaseConnection.getUserMoney(username);
 
 //            int balance = 100;
-            Player player = new Player(username, balance);
+            Player player = new Player(id, balance, username);
             playerToReady.put(username, false);
             return players.add(player);
 
@@ -58,7 +58,7 @@ public class CasinoManager implements Serializable {
             Player loggedout = null;
 
             for (Player player : players) {
-                if (player.username.equals(username)) loggedout = player;
+                if (player.getUsername().equals(username)) loggedout = player;
             }
 
             if (loggedout != null)
@@ -145,7 +145,7 @@ public class CasinoManager implements Serializable {
     private Player getPlayerByName(String username) {
         synchronized (players) {
             for (Player player : players) {
-                if (player.username.equals(username)) return player;
+                if (player.getUsername().equals(username)) return player;
             }
         }
         return null;
@@ -186,7 +186,7 @@ public class CasinoManager implements Serializable {
             List<Integer> nums = bet.getNumbers();
 
             if (nums.contains(winningNum)) {
-                winnings = bet.amount * (10 / nums.size());
+                winnings = (int) (bet.amount * ((float)10 / (float)nums.size()));
             }
 
             player.addBalance(winnings);

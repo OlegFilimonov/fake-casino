@@ -4,14 +4,19 @@ package com.olegfilimonov.fakecasino;
  * @author Oleg Filimonov
  */
 public class Player {
-    String username;
-    int balance;
+    private String username;
+    private int balance;
+    private int id;
 
-    public Player(String username, int balance) {
+    public Player(int id, int balance, String username) {
+        this.id = id;
         this.username = username;
         this.balance = balance;
     }
 
+    public int getId() {
+        return id;
+    }
 
     public String getUsername() {
         return username;
@@ -23,17 +28,26 @@ public class Player {
 
     public int getBalance() {
         return balance;
+
     }
 
     public void setBalance(int balance) {
         this.balance = balance;
+
     }
 
     public void removeBalance(int amount) {
         this.balance -= amount;
+        updateBalance();
+
     }
 
     public void addBalance(int amount) {
         this.balance += amount;
+        updateBalance();
+    }
+
+    private boolean updateBalance(){
+        return SQLDatabaseConnection.updateUserMoney(id,balance);
     }
 }
