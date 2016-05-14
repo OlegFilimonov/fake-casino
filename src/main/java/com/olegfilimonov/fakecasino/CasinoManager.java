@@ -17,8 +17,8 @@ import java.util.*;
 public class CasinoManager implements Serializable {
     private final List<Player> players;
     private Random random;
-    private final HashMap<Player, Bet> bets;
-    private int amountOfReady = 0;
+    private final HashMap<Player, Bet> playerToBet;
+    private final HashMap<String, Boolean> playerToReady;
     private static final String STATE = "/state";
     private int state;
     private static final String CHAT = "/chat";
@@ -27,8 +27,9 @@ public class CasinoManager implements Serializable {
 
     public CasinoManager() {
         this.players = new ArrayList<Player>();
-        this.bets = new HashMap<Player, Bet>();
+        this.playerToBet = new HashMap<Player, Bet>();
         this.random = new Random();
+        this.playerToReady = new HashMap<String, Boolean>();
     }
 
     public boolean login(String username, String password) {
@@ -44,8 +45,9 @@ public class CasinoManager implements Serializable {
             int balance = SQLDatabaseConnection.getUserMoney(username);
 
 //            int balance = 100;
-
-            return players.add(new Player(username, balance));
+            Player player = new Player(username, balance);
+            playerToReady.put(username, false);
+            return players.add(player);
 
         }
     }
@@ -65,30 +67,51 @@ public class CasinoManager implements Serializable {
 
     }
 
+    private boolean allReady() {
+        if (playerToReady.size() == 0) return false;
+
+        boolean allReady = true;
+        for (Map.Entry<String, Boolean> entry : playerToReady.entrySet()) {
+            if (!entry.getValue()) allReady = false;
+        }
+
+        return allReady;
+    }
+
     public boolean contains(final String username) {
         return getPlayerByName(username) != null;
 
     }
 
     public void addReady(String username) {
-        amountOfReady++;
-        if (amountOfReady >= players.size()) {
+        playerToReady.put(username, true);
+
+        sendMessage(username + " is ready");
+
+        boolean changeState = false;
+
+        if (allReady()) {
+            changeState = true;
+
+            if (state == 1) {
+                calculateResults();
+            }
+        }
+        commit();
+
+
+        if (changeState) {
             if (state == 0) {
                 setState(1);
             } else if (state == 1) {
-                calculateResults();
                 setState(0);
             }
         }
-        sendMessage(username + " is ready");
-        commit();
     }
 
     public void removeReady(String username) {
-        amountOfReady--;
-        if (amountOfReady < players.size()) {
-            setState(0);
-        }
+        playerToReady.put(username, false);
+
         sendMessage(username + " is not ready");
         commit();
     }
@@ -109,8 +132,14 @@ public class CasinoManager implements Serializable {
     public void setState(int state) {
         if (state == this.state) return;
         this.state = state;
-        this.amountOfReady = 0;
+        resetReady();
         sendCommand(state);
+    }
+
+    private void resetReady() {
+        for (Map.Entry<String, Boolean> entry : playerToReady.entrySet()) {
+            entry.setValue(false);
+        }
     }
 
     private Player getPlayerByName(String username) {
@@ -125,18 +154,20 @@ public class CasinoManager implements Serializable {
     public boolean makeBet(String username, Bet bet) {
         Player player = getPlayerByName(username);
         if (player == null) return false;
-        //todo check if theres enough room
 
         if (bet.getAmount() > player.getBalance()) return false;
 
         player.removeBalance(bet.getAmount());
-        synchronized (bets) {
-            bets.put(player, bet);
+
+        synchronized (playerToBet) {
+            playerToBet.put(player, bet);
         }
-        sendMessage(username + " has made a bet of " + bet.getAmount() + "$");
+
+        String bets = Arrays.toString(bet.getNumbers().toArray());
+
+        sendMessage(username + " has made a bet of " + bet.getAmount() + "$ on " + bets);
 
         addReady(username);
-        commit();
         return true;
     }
 
@@ -149,7 +180,7 @@ public class CasinoManager implements Serializable {
         sendMessage("<b>Winning number is: " + winningNum + "</b>");
 
 
-        for (Map.Entry<Player, Bet> entry : bets.entrySet()) {
+        for (Map.Entry<Player, Bet> entry : playerToBet.entrySet()) {
             Player player = entry.getKey();
             Bet bet = entry.getValue();
             List<Integer> nums = bet.getNumbers();
@@ -162,6 +193,7 @@ public class CasinoManager implements Serializable {
             sendMessage(player.getUsername() + " has won " + winnings + "$");
 
         }
+
     }
 
     private final PushContext pushContext = PushContextFactory.getDefault().getPushContext();
@@ -176,8 +208,9 @@ public class CasinoManager implements Serializable {
     }
 
     private void commit() {
+        if (message.equals("")) return;
+        message = message.replaceFirst("<br>", "");
         pushContext.push(CHAT, message);
-        message = message.replaceFirst("<br>","");
         this.message = "";
     }
 }
