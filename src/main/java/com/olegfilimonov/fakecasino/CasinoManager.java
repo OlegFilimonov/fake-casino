@@ -14,10 +14,10 @@ import java.util.*;
 
 @Named
 @ApplicationScoped
-public class CasinoUsers implements Serializable {
-    private List<Player> players;
+public class CasinoManager implements Serializable {
+    private final List<Player> players;
     private Random random;
-    private HashMap<Player, Bet> bets;
+    private final HashMap<Player, Bet> bets;
     private int amountOfReady = 0;
     private static final String STATE = "/state";
     private int state;
@@ -25,9 +25,9 @@ public class CasinoUsers implements Serializable {
     private String message = "";
 
 
-    public CasinoUsers() {
-        this.players = new ArrayList<>();
-        this.bets = new HashMap<>();
+    public CasinoManager() {
+        this.players = new ArrayList<Player>();
+        this.bets = new HashMap<Player, Bet>();
         this.random = new Random();
     }
 
@@ -36,14 +36,14 @@ public class CasinoUsers implements Serializable {
 
             if (this.contains(username)) return false;
 
-            // boolean valid = SQLDatabaseConnection.checkUser(username, password);
-            boolean valid = true;
+            boolean valid = SQLDatabaseConnection.checkUser(username, password);
+//            boolean valid = true;
 
             if (!valid) return false;
 
-            //int balance = SQLDatabaseConnection.getUserMoney(username);
+            int balance = SQLDatabaseConnection.getUserMoney(username);
 
-            int balance = 100;
+//            int balance = 100;
 
             return players.add(new Player(username, balance));
 
@@ -102,10 +102,6 @@ public class CasinoUsers implements Serializable {
         return players;
     }
 
-    public void setPlayers(List<Player> players) {
-        this.players = players;
-    }
-
     public int getState() {
         return state;
     }
@@ -126,10 +122,13 @@ public class CasinoUsers implements Serializable {
         return null;
     }
 
-    public void makeBet(String username, Bet bet) {
+    public boolean makeBet(String username, Bet bet) {
         Player player = getPlayerByName(username);
-        if (player == null) return;
+        if (player == null) return false;
         //todo check if theres enough room
+
+        if (bet.getAmount() > player.getBalance()) return false;
+
         player.removeBalance(bet.getAmount());
         synchronized (bets) {
             bets.put(player, bet);
@@ -138,15 +137,16 @@ public class CasinoUsers implements Serializable {
 
         addReady(username);
         commit();
+        return true;
     }
 
     private void calculateResults() {
 
 
-        int winningNum = random.nextInt(10 + 1);
+        int winningNum = random.nextInt(10) + 1;
         int winnings = 0;
 
-        sendMessage("<b>Winning number is: + " + winningNum + "</b>");
+        sendMessage("<b>Winning number is: " + winningNum + "</b>");
 
 
         for (Map.Entry<Player, Bet> entry : bets.entrySet()) {
@@ -155,11 +155,11 @@ public class CasinoUsers implements Serializable {
             List<Integer> nums = bet.getNumbers();
 
             if (nums.contains(winningNum)) {
-                winnings = 100 / nums.size();
+                winnings = bet.amount * (10 / nums.size());
             }
 
             player.addBalance(winnings);
-            sendMessage(player.getUsername() + " won " + winnings + "$");
+            sendMessage(player.getUsername() + " has won " + winnings + "$");
 
         }
     }
@@ -171,12 +171,13 @@ public class CasinoUsers implements Serializable {
     }
 
     private void sendMessage(String message) {
-        this.message += message + "<br>";
+        this.message += "<br>" + message;
 
     }
 
     private void commit() {
         pushContext.push(CHAT, message);
+        message = message.replaceFirst("<br>","");
         this.message = "";
     }
 }

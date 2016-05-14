@@ -13,15 +13,7 @@ import java.sql.Statement;
 
 public class SQLDatabaseConnection {
 
-    private static final String CONNECTION_STRING =
-            "jdbc:sqlserver://filimonov.database.windows.net:1433;" +
-                    "database=maindb;" +
-                    "user=olegfilimonov@filimonov;" +
-                    "password=Action23;" +
-                    "encrypt=true;" +
-                    "trustServerCertificate=false;" +
-                    "hostNameInCertificate=*.database.windows.net;" +
-                    "loginTimeout=30;";
+    private static final String CONNECTION_STRING = Hidden.CONNECTION_STRING;
 
     public static boolean checkUser(String username, String passwrod) {
         try {

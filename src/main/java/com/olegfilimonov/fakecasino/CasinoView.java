@@ -18,7 +18,7 @@ import java.util.List;
 public class CasinoView implements Serializable {
 
     @Inject
-    private CasinoUsers casinoUsers;
+    private CasinoManager casinoManager;
     @Inject
     private MessageHelper messageHelper;
     @Inject
@@ -33,10 +33,10 @@ public class CasinoView implements Serializable {
     private int bet;
     private boolean loggedIn;
     private String message;
-    private String numbers;
+    private String[] numbers;
 
     public void login() {
-        loggedIn = casinoUsers.login(username, password);
+        loggedIn = casinoManager.login(username, password);
         if (!loggedIn) {
             messageHelper.addErrorMessage("Wrong username/password");
         } else {
@@ -51,32 +51,31 @@ public class CasinoView implements Serializable {
     }
 
     public void logout() {
-        casinoUsers.logout(username);
+        casinoManager.logout(username);
         loggedIn = false;
         chatManager.sendMessage(username, "left the game");
-        casinoUsers.removeReady(username);
+        casinoManager.removeReady(username);
     }
 
     public void makeBet() {
         setReady(false);
-        List<Integer> nums = new ArrayList<>();
-        String[] array = numbers.split(",");
+        List<Integer> nums = new ArrayList<Integer>();
 
-        for (String numString : array) {
+        for (String numString : numbers) {
             nums.add(Integer.valueOf(numString));
         }
 
         Bet bet = new Bet(this.bet, nums);
-        casinoUsers.makeBet(username, bet);
+        betMade = casinoManager.makeBet(username, bet);
 
-        betMade = true;
+        if(!betMade) messageHelper.addErrorMessage("You don't have enough to make a bet of " + bet.getAmount() + "$");
     }
 
     public void updateReady() {
         if (ready) {
-            casinoUsers.addReady(username);
+            casinoManager.addReady(username);
         } else {
-            casinoUsers.removeReady(username);
+            casinoManager.removeReady(username);
         }
     }
 
@@ -108,14 +107,6 @@ public class CasinoView implements Serializable {
         return loggedIn;
     }
 
-    public int getEarnings() {
-        return earnings;
-    }
-
-    public void setEarnings(int earnings) {
-        this.earnings = earnings;
-    }
-
     public void setBet(int bet) {
         this.bet = bet;
     }
@@ -132,11 +123,11 @@ public class CasinoView implements Serializable {
         this.ready = ready;
     }
 
-    public String getNumbers() {
+    public String[] getNumbers() {
         return numbers;
     }
 
-    public void setNumbers(String numbers) {
+    public void setNumbers(String[] numbers) {
         this.numbers = numbers;
     }
 
@@ -148,8 +139,7 @@ public class CasinoView implements Serializable {
         this.betMade = betMade;
     }
 
-    public void resetBets()
-    {
+    public void resetBets() {
         this.betMade = false;
     }
 }
